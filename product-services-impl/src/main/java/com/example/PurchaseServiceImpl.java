@@ -27,36 +27,6 @@ public class PurchaseServiceImpl implements PurchaseService {
     @Autowired
     private RestTemplate restTemplate;
 
-    @Override
-    public synchronized ResponseEntity<BaseResponse<String>> makePurchase(PurchaseRequest purchaseRequest) {
-        try {
-            Optional<Product> optionalProduct = productRepository.findByProductName(purchaseRequest.getProductName());
-            if (optionalProduct.isPresent()) {
-                Product product = optionalProduct.get();
-                if (product.getProductQuantity() >= purchaseRequest.getQuantity()) {
-                    try {
-                        updateStockByPurchase(purchaseRequest.getProductName(), purchaseRequest.getQuantity());
-                        logPurchase(product, purchaseRequest.getQuantity());
-                        log.info("Done purchasing");
-                        return ResponseEntity.ok(new BaseResponse<>("Product Purchased", null, true, HttpStatus.OK.value()));
-                    } catch (IOException e) {
-                        log.error("Something went wrong with exception: " + e.getMessage());
-                        throw new RuntimeException(e);
-                    }
-                } else {
-                    log.warn("Product out of stock");
-                    return ResponseEntity.ok(new BaseResponse<>("Product out of stock", null, false, HttpStatus.NO_CONTENT.value()));
-                }
-            } else {
-                log.warn("No product found");
-                return ResponseEntity.ok(new BaseResponse<>("No Product Found to Purchase", null, false, HttpStatus.I_AM_A_TEAPOT.value()));
-            }
-        } catch (NullPointerException exception) {
-            return ResponseEntity.ok(new BaseResponse<>("No Product Found to Purchase", null, false, HttpStatus.INTERNAL_SERVER_ERROR.value()));
-        } catch (Exception exception) {
-            return ResponseEntity.ok(new BaseResponse<>(null, exception.getMessage(), false, HttpStatus.INTERNAL_SERVER_ERROR.value()));
-        }
-    }
 
     @Override
     public BaseResponse<?> deductStock(List<PurchaseRequest> productRequest) {

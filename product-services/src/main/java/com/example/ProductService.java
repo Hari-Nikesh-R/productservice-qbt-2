@@ -16,16 +16,14 @@ import java.util.Map;
 
 public interface ProductService {
 
-    ResponseEntity<BaseResponse<String>> addProduct(ProductRequest product) throws IOException;
+    ResponseEntity<BaseResponse<String>> addOrUpdateProduct(ProductRequest product) throws IOException;
 
-    ResponseEntity<BaseResponse<String>> updateProduct(ProductRequest productRequest);
     ResponseEntity<BaseResponse<ProductResponse>> getProduct(String productName);
 
     ResponseEntity<BaseResponse<Map<String, List<Report>>>> generateReport();
 
     ResponseEntity<BaseResponse<String>> deleteProduct(String productName);
     ResponseEntity<BaseResponse<String>> deleteAllProduct();
-    BaseResponse<String> updateStock(StockRequest stockRequest);
     BaseResponse<List<ProductResponse>> getAllProductsFromInventory();
-    ProductQuantityCheckResponse checkStock(PurchaseRequest productRequest);
+    ProductQuantityCheckResponse[] checkStock(List<PurchaseRequest> productRequest);
 }

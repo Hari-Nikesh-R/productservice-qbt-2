@@ -23,35 +23,31 @@ import java.util.*;
 @Service
 @Slf4j
 public class ProductServiceImpl implements ProductService {
-
     @Autowired
     private ObjectMapper mapper;
-
     @Autowired
     private ProductRepository productRepository;
-
-
     @Override
-    public ResponseEntity<BaseResponse<String>> addProduct(ProductRequest productRequest) throws IOException {
+    public ResponseEntity<BaseResponse<String>> addOrUpdateProduct(ProductRequest productRequest) throws IOException {
         try {
             Optional<Product> optionalProduct = productRepository.findByProductName(productRequest.getProductName());
-            return optionalProduct.map(product -> ResponseEntity.ok(new BaseResponse<>("Product already present", null, false, HttpStatus.ALREADY_REPORTED.value()))).orElseGet(() -> {
+            return optionalProduct.map(product -> updateProduct(productRequest)).orElseGet(() -> {
                 Product product = new Product();
                 BeanUtils.copyProperties(productRequest, product);
                 productRepository.save(product);
                 log.info("Product saved in database");
                 return ResponseEntity.ok(new BaseResponse<>("Product added successfully", null, true, HttpStatus.OK.value()));
             });
-        } catch (Exception exception) {
+        }
+        catch (Exception exception) {
             log.error("thrown an exception: " + exception.getMessage());
             return ResponseEntity.ok(new BaseResponse<>(null, exception.getMessage(), false, HttpStatus.INTERNAL_SERVER_ERROR.value()));
         }
     }
 
-    @Override
-    public ResponseEntity<BaseResponse<String>> updateProduct(ProductRequest productRequest) {
+    private ResponseEntity<BaseResponse<String>> updateProduct(ProductRequest productRequest) {
         try {
-            Optional<Product> optionalProduct = productRepository.findByProductName(productRequest.getProductName());
+            Optional<Product> optionalProduct = getProductByName(productRequest.getProductName());
             return optionalProduct.map((product -> {
                 Integer id = product.getProductId();
                 BeanUtils.copyProperties(productRequest, product);
@@ -67,7 +63,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public ResponseEntity<BaseResponse<ProductResponse>> getProduct(String productName) {
         try {
-            Optional<Product> optionalProduct = productRepository.findByProductName(productName);
+            Optional<Product> optionalProduct = getProductByName(productName);
             return optionalProduct.map(product -> {
                 ProductResponse productResponse = new ProductResponse();
                 BeanUtils.copyProperties(optionalProduct.get(), productResponse);
@@ -127,20 +123,6 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public BaseResponse<String> updateStock(StockRequest stockRequest) {
-        try {
-            Optional<Product> optionalProduct = productRepository.findByProductName(stockRequest.getProductName());
-            return optionalProduct.map((product -> {
-                product.setProductQuantity(stockRequest.getQuantity());
-                productRepository.save(product);
-                return new BaseResponse<>("Product Updated", null, true, HttpStatus.OK.value());
-            })).orElseGet(() -> new BaseResponse<>(null, "No product found to update", false, HttpStatus.NO_CONTENT.value()));
-        } catch (Exception exception) {
-            return new BaseResponse<>(null, exception.getMessage(), false, HttpStatus.INTERNAL_SERVER_ERROR.value());
-        }
-    }
-
-    @Override
     public BaseResponse<List<ProductResponse>> getAllProductsFromInventory() {
         try {
             List<ProductResponse> productResponses = mapper.convertValue(productRepository.findAll(), new TypeReference<>() {
@@ -152,19 +134,43 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public synchronized ProductQuantityCheckResponse checkStock(PurchaseRequest productRequest) {
+    public synchronized ProductQuantityCheckResponse[] checkStock(List<PurchaseRequest> productRequest) {
+        List<ProductQuantityCheckResponse> productQuantityCheckResponses = new ArrayList<>();
         try {
-            Optional<Product> optionalProduct = productRepository.findByProductName(productRequest.getProductName());
-            return optionalProduct.map(product -> {
-                        boolean available = productRequest.getQuantity() <= product.getProductQuantity();
-                        ProductResponse productResponse = new ProductResponse();
-                        BeanUtils.copyProperties(product, productResponse);
-                        return new ProductQuantityCheckResponse(available, available ? "Quantity available" : "Product out of stock", productResponse);
-                    })
-                    .orElseGet(() -> new ProductQuantityCheckResponse(false, "No Product found", null));
+            List<Product> productList = productRepository.findAll();
+            productRequest.forEach(product -> {
+                 productQuantityCheckResponses.add(getProductByQuantity(productList, product));
+            });
         } catch (Exception exception) {
             exception.printStackTrace();
-            return new ProductQuantityCheckResponse(false, exception.getMessage(), null);
+            productQuantityCheckResponses.add(new ProductQuantityCheckResponse(false, exception.getMessage(), null));
         }
+        return productQuantityCheckResponses.toArray(ProductQuantityCheckResponse[]::new);
+    }
+
+    private ProductQuantityCheckResponse getProductByQuantity(List<Product> productList, PurchaseRequest purchaseRequest) {
+        Optional<Product> product = productList.stream().filter(prod -> prod.getProductName(
+        ).equals(purchaseRequest.getProductName())).findFirst();
+        if (product.isPresent()) {
+            if (!(product.get().getProductQuantity() >= purchaseRequest.getQuantity())) {
+                ProductResponse productResponse = new ProductResponse();
+                BeanUtils.copyProperties(product, productResponse);
+                return new ProductQuantityCheckResponse(false, "Product out of stock", productResponse);
+            }
+            else {
+                return new ProductQuantityCheckResponse(true, "Product available", null);
+            }
+        }
+        else {
+            return new ProductQuantityCheckResponse(false, "Product out of stock", null);
+        }
+    }
+
+    public boolean containsName(final List<PurchaseRequest> list, final String productName){
+        return list.stream().map(PurchaseRequest::getProductName).anyMatch(productName::equals);
+    }
+
+    private synchronized Optional<Product> getProductByName(String productName) {
+        return productRepository.findByProductName(productName);
     }
 }

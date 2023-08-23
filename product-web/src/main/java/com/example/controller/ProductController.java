@@ -31,9 +31,9 @@ public class ProductController {
         return productService.generateReport();
     }
 
-    @PostMapping(value = Urls.ADD_PRODUCT)
+    @PostMapping
     public ResponseEntity<BaseResponse<String>> addProduct(@RequestBody @Valid ProductRequest product) throws IOException {
-        return productService.addProduct(product);
+        return productService.addOrUpdateProduct(product);
     }
 
     @GetMapping
@@ -42,8 +42,8 @@ public class ProductController {
     }
 
     @PutMapping
-    public ResponseEntity<BaseResponse<String>> updateProduct(@RequestBody @Valid ProductRequest productRequest) {
-        return productService.updateProduct(productRequest);
+    public ResponseEntity<BaseResponse<String>> updateProduct(@RequestBody @Valid ProductRequest productRequest) throws IOException {
+        return productService.addOrUpdateProduct(productRequest);
     }
 
     @DeleteMapping
@@ -61,13 +61,8 @@ public class ProductController {
         return productService.getAllProductsFromInventory();
     }
 
-    @PutMapping(value = Urls.STOCK)
-    public BaseResponse<String> updateStock(@RequestBody StockRequest stockRequest) {
-        return productService.updateStock(stockRequest);
-    }
-
     @PostMapping(value = Urls.QUANTITY)
-    public ProductQuantityCheckResponse quantityCheck(@RequestBody PurchaseRequest productRequest) {
+    public ProductQuantityCheckResponse[] quantityCheck(@RequestBody List<PurchaseRequest> productRequest) {
         return productService.checkStock(productRequest);
     }
 
