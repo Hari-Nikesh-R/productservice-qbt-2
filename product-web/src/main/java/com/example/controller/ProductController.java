@@ -41,11 +41,6 @@ public class ProductController {
         return productService.getProduct(productName);
     }
 
-    @PutMapping
-    public ResponseEntity<BaseResponse<String>> updateProduct(@RequestBody @Valid ProductRequest productRequest) throws IOException {
-        return productService.addOrUpdateProduct(productRequest);
-    }
-
     @DeleteMapping
     public ResponseEntity<BaseResponse<String>> deleteProduct(@RequestParam("productName") String productName) {
         return productService.deleteProduct(productName);
